@@ -62,7 +62,8 @@ def combine_data():
     write_json(pathlib.Path(args.datadir), json_dict, logger)
     
     # Delete continent-level data
-    delete_continent_json(json_dict["json_files"], logger)
+    if args.delete:
+        delete_continent_json(json_dict["json_files"], logger)
         
     end = datetime.datetime.now()
     print(f"Execution time: {end - start}")
