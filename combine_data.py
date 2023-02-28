@@ -52,6 +52,7 @@ def combine_data():
         "reaches" : [],
         "s3_list" : [],
         "sicsets" : [],
+        "json_files": []
     }    
     
     # Combine continent-level data
@@ -59,6 +60,9 @@ def combine_data():
     
     # Write out global json data
     write_json(pathlib.Path(args.datadir), json_dict, logger)
+    
+    # Delete continent-level data
+    delete_continent_json(json_dict["json_files"], logger)
         
     end = datetime.datetime.now()
     print(f"Execution time: {end - start}")
@@ -75,6 +79,10 @@ def create_args():
                             "--datadir",
                             type=str,
                             help="Path to directory that contains datagen data.")
+    arg_parser.add_argument("-x",
+                            "--delete",
+                            help="Indicate if continent-level JSON files should be deleted.",
+                            action="store_true")
     return arg_parser
 
 def load_continents(cont_json):
@@ -134,29 +142,41 @@ def combine_continents(continents, data_dir, json_dict, logger):
     """
     
     for continent in continents:
+        # Check if data is present for continent
         basin_file = data_dir.joinpath(f"basin_{continent}.json")
         if not basin_file.is_file():
             logger.info(f"Continent data not present for: {continent.upper()}. Skipping continent.")
             continue
-        with open(basin_file) as jf:
-            json_dict["basin"] += json.load(jf)
-        with open(data_dir.joinpath(f"cycle_passes_{continent}.json")) as jf:
-            json_dict["cycle_passes"].update(json.load(jf))
-        with open(data_dir.joinpath(f"hivdisets_{continent}.json")) as jf:
-            json_dict["hivdisets"] += json.load(jf)
-        with open(data_dir.joinpath(f"metrosets_{continent}.json")) as jf:
-            json_dict["metrosets"] += json.load(jf)
-        with open(data_dir.joinpath(f"passes_{continent}.json")) as jf:
-            json_dict["passes"].update(json.load(jf))
-        with open(data_dir.joinpath(f"reach_node_{continent}.json")) as jf:
-            json_dict["reach_node"] += json.load(jf)
-        with open(data_dir.joinpath(f"reaches_{continent}.json")) as jf:
-            json_dict["reaches"] += json.load(jf)
-        with open(data_dir.joinpath(f"s3_list_{continent}.json")) as jf:
-            json_dict["s3_list"] += json.load(jf)
-        with open(data_dir.joinpath(f"sicsets_{continent}.json")) as jf:
-            json_dict["sicsets"] += json.load(jf)
+        
+        # Concatenate continent-level data
+        for key in json_dict.keys():
+            if key == "json_files": continue
+            json_dict = read_json_data(data_dir, continent, key, json_dict)
+        
     return json_dict
+
+def read_json_data(data_dir, continent, filename, json_dict):
+    """
+    Parameters
+    -----------
+    data_dir: pathlib.Path
+        Path to datagen directory
+    continent: str
+        Two-letter continent string
+    filename: str
+        String name of JSON file (basin, reaches, etc...)
+    json_dict: dict
+        Dictionary of global data lists
+    """
+    
+    json_file = data_dir.joinpath(f"{filename}_{continent}.json")
+    with open(json_file) as jf:
+        if filename == "cycle_passes" or filename == "passes":
+            json_dict[filename].update(json.load(jf))
+        else:
+            json_dict[filename] += json.load(jf)
+        json_dict["json_files"] += [json_file]
+    return json_dict    
 
 def write_json(data_dir, json_dict, logger):
     """Combine continent-level data in to global data.
@@ -177,6 +197,7 @@ def write_json(data_dir, json_dict, logger):
     
     # Write global JSON files
     for key, value in json_dict.items():
+        if key == "json_files": continue
         write_json_file(data_dir, key, value, logger)
         
 def strtoi(text):
@@ -205,6 +226,13 @@ def write_json_file(data_dir, filename, data, logger):
     with open(data_dir.joinpath(f"{filename}.json"), 'w') as jf:
         json.dump(data, jf, indent=2)
         logger.info(f"Written: {filename}.json.")
+        
+def delete_continent_json(json_files, logger):
+    """Delete files in list."""
+    
+    for json_file in json_files: 
+        json_file.unlink()
+        logger.info(f"Deleted: {json_file}")
     
 if __name__ == "__main__":
     combine_data()
