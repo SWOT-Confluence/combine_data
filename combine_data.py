@@ -27,10 +27,6 @@ import pathlib
 import re
 import sys
 
-# Third-party imports
-import boto3
-import botocore
-
 def combine_data():
     """Combine continent-level JSON files into global files."""
     
@@ -69,12 +65,6 @@ def combine_data():
     # Delete continent-level data
     if args.delete:
         delete_continent_json(json_dict["json_files"], logger)
-        
-    # Disable renew
-    try:
-        disable_renew(logger)
-    except botocore.exceptions.ClientError as e:
-        handle_error(e, logger)
         
     end = datetime.datetime.now()
     print(f"Execution time: {end - start}")
@@ -245,27 +235,6 @@ def delete_continent_json(json_files, logger):
     for json_file in json_files: 
         json_file.unlink()
         logger.info(f"Deleted: {json_file}")
-        
-def disable_renew(logger):
-    """Disable the hourly renewal of PO.DAAC S3 credentials."""
-    
-    scheduler = boto3.client("scheduler")
-    try:
-        # Get schedule
-        get_response = scheduler.get_schedule(Name="confluence-renew")
-        
-        # Update schedule
-        update_response = scheduler.update_schedule(
-            Name=get_response["Name"],
-            GroupName=get_response["GroupName"],
-            FlexibleTimeWindow=get_response["FlexibleTimeWindow"],
-            ScheduleExpression=get_response["ScheduleExpression"],
-            Target=get_response["Target"],
-            State="DISABLED"
-        )
-        logger.info("Disabled 'renew' Lambda function.")
-    except botocore.exceptions.ClientError as e:
-        raise e
         
 def handle_error(error, logger):
     """Print out error message and exit."""
