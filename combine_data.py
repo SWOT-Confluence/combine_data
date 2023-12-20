@@ -187,7 +187,7 @@ def write_json_file(data_dir, filename, data, logger):
 
     data_chunks = [data]
     filenames = [filename]
-    if filename in ['reaches', 'sicsets', 'hivdisets']:
+    if filename in ['reaches', 'sicsets', 'hivdisets', 'reach_node']:
         if len(data)>10000:
             data_chunks = []
             filenames = []
