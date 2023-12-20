@@ -187,23 +187,27 @@ def write_json_file(data_dir, filename, data, logger):
 
     data_chunks = [data]
     filenames = [filename]
+    if filename in ['reaches', 'sicsets', 'hivdisets']:
+        if len(data)>10000:
+            data_chunks = []
+            filenames = []
 
-    if len(data)>10000:
-        data_chunks = []
-        filenames = []
-
-        chunk_dict = {
-        }
-        chunk_num = math.ceil(len(data)/10000)
-        for i in range(chunk_num):
-            i_times_10k = i*10000
-            # print(data[i_times_10k:i_times_10k+10000][-1])
-            chunk_of_data = data[i_times_10k:i_times_10k+10000]
-            data_chunks.append(chunk_of_data)
-            # filenames.append(filename + f'_{i}')
+            chunk_dict = {
+            }
+            chunk_num = math.ceil(len(data)/10000)
+            for i in range(chunk_num):
+                i_times_10k = i*10000
+                # print(data[i_times_10k:i_times_10k+10000][-1])
+                chunk_of_data = data[i_times_10k:i_times_10k+10000]
+                data_chunks.append(chunk_of_data)
+                # filenames.append(filename + f'_{i}')
     cnt = 0
     for data_chunk in data_chunks:
-        with open(data_dir.joinpath(f"{filename}_{cnt}.json"), 'w') as jf:
+        if len(data_chunks) == 1:
+            new_filename = filename
+        else:
+            new_filename = f'{filename}_{cnt}'
+        with open(data_dir.joinpath(f"{new_filename}.json"), 'w') as jf:
             json.dump(data_chunk, jf, indent=2)
             logger.info(f"Written: {filename}_{cnt}.json.")
         cnt += 1
