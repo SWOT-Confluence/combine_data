@@ -26,49 +26,8 @@ import logging
 import pathlib
 import re
 import sys
-
-def combine_data():
-    """Combine continent-level JSON files into global files."""
-    
-    start = datetime.datetime.now()
-    
-    # Command line arguments
-    arg_parser = create_args()
-    args = arg_parser.parse_args()
-    
-    # Get logger
-    logger = get_logger()
-    
-    # Load continents
-    continents = load_continents(pathlib.Path(args.contfile))
-    
-    # Lists to populate
-    json_dict = {
-        "basin" : [],
-        "cycle_passes" : {},
-        "hivdisets" : [],
-        "metrosets" : [],
-        "passes" : {},
-        "reach_node" : [],
-        "reaches" : [],
-        "s3_list" : [],
-        "sicsets" : [],
-        "json_files": []
-    }    
-    
-    # Combine continent-level data
-    json_dict = combine_continents(continents, pathlib.Path(args.datadir), json_dict, logger)
-    
-    # Write out global json data
-    write_json(pathlib.Path(args.datadir), json_dict, logger)
-    
-    # Delete continent-level data
-    if args.delete:
-        delete_continent_json(json_dict["json_files"], logger)
-        
-    end = datetime.datetime.now()
-    print(f"Execution time: {end - start}")
-    
+import math
+   
 def create_args():
     """Create and return argparser with arguments."""
 
@@ -175,6 +134,7 @@ def read_json_data(data_dir, continent, filename, json_dict):
     with open(json_file) as jf:
         if filename == "cycle_passes" or filename == "passes":
             json_dict[filename].update(json.load(jf))
+
         else:
             json_dict[filename] += json.load(jf)
         json_dict["json_files"] += [json_file]
@@ -224,10 +184,29 @@ def write_json_file(data_dir, filename, data, logger):
     logger: logger
         Logger instance to use for logging statements
     """
-    
-    with open(data_dir.joinpath(f"{filename}.json"), 'w') as jf:
-        json.dump(data, jf, indent=2)
-        logger.info(f"Written: {filename}.json.")
+    chunking == False
+    data_chunks = [data]
+    filenames = [filename]
+
+    if len(data)>10000:
+        data_chunks = []
+        filenames = []
+
+        chunk_dict = {
+        }
+        chunk_num = math.ceil(len(data)/10000)
+        for i in range(chunk_num):
+            i_times_10k = i*10000
+            # print(data[i_times_10k:i_times_10k+10000][-1])
+            chunk_of_data = data[i_times_10k:i_times_10k+10000]
+            data_chunks.append(chunk_of_data)
+            # filenames.append(filename + f'_{i}')
+    cnt += 0
+    for data_chunk in data_chunks:
+        with open(data_dir.joinpath(f"{filename}_{cnt}.json"), 'w') as jf:
+            json.dump(data_chunk, jf, indent=2)
+            logger.info(f"Written: {filename}_{cnt}.json.")
+        cnt += 1
         
 def delete_continent_json(json_files, logger):
     """Delete files in list."""
@@ -243,6 +222,48 @@ def handle_error(error, logger):
     logger.error(error)
     logger.error("System exiting.")
     sys.exit(1)
+def combine_data():
+    """Combine continent-level JSON files into global files."""
+    
+    start = datetime.datetime.now()
+    
+    # Command line arguments
+    arg_parser = create_args()
+    args = arg_parser.parse_args()
+    
+    # Get logger
+    logger = get_logger()
+    
+    # Load continents
+    continents = load_continents(pathlib.Path(args.contfile))
+    
+    # Lists to populate
+    json_dict = {
+        "basin" : [],
+        "cycle_passes" : {},
+        "hivdisets" : [],
+        "metrosets" : [],
+        "passes" : {},
+        "reach_node" : [],
+        "reaches" : [],
+        "s3_list" : [],
+        "sicsets" : [],
+        "json_files": []
+    }    
+    
+    # Combine continent-level data
+    json_dict = combine_continents(continents, pathlib.Path(args.datadir), json_dict, logger)
+    
+    # Write out global json data
+    write_json(pathlib.Path(args.datadir), json_dict, logger)
+    
+    # Delete continent-level data
+    if args.delete:
+        delete_continent_json(json_dict["json_files"], logger)
+        
+    end = datetime.datetime.now()
+    print(f"Execution time: {end - start}")
+ 
     
 if __name__ == "__main__":
     combine_data()
