@@ -184,7 +184,7 @@ def write_json_file(data_dir, filename, data, logger):
     logger: logger
         Logger instance to use for logging statements
     """
-    chunking == False
+
     data_chunks = [data]
     filenames = [filename]
 
@@ -201,7 +201,7 @@ def write_json_file(data_dir, filename, data, logger):
             chunk_of_data = data[i_times_10k:i_times_10k+10000]
             data_chunks.append(chunk_of_data)
             # filenames.append(filename + f'_{i}')
-    cnt += 0
+    cnt = 0
     for data_chunk in data_chunks:
         with open(data_dir.joinpath(f"{filename}_{cnt}.json"), 'w') as jf:
             json.dump(data_chunk, jf, indent=2)
