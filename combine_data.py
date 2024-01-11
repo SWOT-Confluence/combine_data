@@ -132,7 +132,7 @@ def read_json_data(data_dir, continent, filename, json_dict):
     
     json_file = data_dir.joinpath(f"{filename}_{continent}.json")
     with open(json_file) as jf:
-        if filename == "cycle_passes" or filename == "passes":
+        if filename == "cycle_passes" or filename == "passes" or filename == "s3_reach":
             json_dict[filename].update(json.load(jf))
 
         else:
