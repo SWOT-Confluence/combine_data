@@ -307,12 +307,14 @@ def combine_data():
     json_file_list = write_json(pathlib.Path(args.datadir), json_dict, logger)
     
     # Upload JSON files to S3
-    try:
-        upload(json_file_list, args.uploadbucket, logger)
-    except botocore.exceptions.ClientError as e:
-        logger.error(e)
-        logger.info("System exiting.")
-        sys.exit(1)
+    if args.uploadbucket:
+
+        try:
+            upload(json_file_list, args.uploadbucket, logger)
+        except botocore.exceptions.ClientError as e:
+            logger.error(e)
+            logger.info("System exiting.")
+            sys.exit(1)
     
     # Delete continent-level data
     if args.delete:
