@@ -180,7 +180,7 @@ def log_totals(json_dict, logger):
     logger.info(f"Number of MetroMan sets: {len(json_dict['metrosets']):,}.")
     logger.info(f"Number of sic4DVar sets: {len(json_dict['sicsets']):,}.")
 
-def write_json(data_dir, json_dict, cont_file, logger):
+def write_json(data_dir, json_dict, logger):
     """Combine continent-level data in to global data.
     
     Parameters
@@ -200,8 +200,7 @@ def write_json(data_dir, json_dict, cont_file, logger):
     # Write global JSON files
     json_file_list = []
     for key, value in json_dict.items():
-        if key == "json_files": continue
-        if key == "continent": json_file_list.append(data_dir.joinpath(cont_file))
+        if key == "json_files" or key == "continent": continue
         json_file_list.append(write_json_file(data_dir, key, value, logger))
         
     return json_file_list
@@ -285,6 +284,7 @@ def combine_data():
     
     # Load continents
     continents = load_continents(args.datadir, args.contfile)
+    logger.info(f"Written: {args.contfile}")
     
     # Lists to populate
     json_dict = {
@@ -305,7 +305,7 @@ def combine_data():
     json_dict = combine_continents(continents, pathlib.Path(args.datadir), json_dict, logger)
     
     # Write out global json data
-    json_file_list = write_json(pathlib.Path(args.datadir), json_dict, args.contfile, logger)
+    json_file_list = write_json(pathlib.Path(args.datadir), json_dict, logger)
     
     # Upload JSON files to S3
     if args.uploadbucket:
