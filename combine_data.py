@@ -80,7 +80,8 @@ def load_continents(data_dir, cont_file):
     c = []
     for json_file in json_files:
         for key in continent_dict.keys():
-            if key in json_file and continent_dict[key] not in c:
+            json_file_c = json_file.split('.')[-2].split('_')[-1]
+            if key == json_file_c and continent_dict[key] not in c:
                 c.append(continent_dict[key])
     
     # Create new continent file
@@ -164,7 +165,6 @@ def read_json_data(data_dir, continent, filename, json_dict):
     with open(json_file) as jf:
         if filename == "cycle_passes" or filename == "passes" or filename == "s3_reach":
             json_dict[filename].update(json.load(jf))
-
         else:
             json_dict[filename] += json.load(jf)
         json_dict["json_files"] += [json_file]
@@ -297,6 +297,7 @@ def combine_data():
         "reach_node" : [],
         "reaches" : [],
         "s3_list" : [],
+        "s3_reach": {},
         "sicsets" : [],
         "json_files": []
     }    
