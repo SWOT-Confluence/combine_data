@@ -170,10 +170,10 @@ def read_json_data(data_dir, continent, filename, json_dict):
         json_dict["json_files"] += [json_file]
     return json_dict
 
-def log_totals(json_dict, logger):
+def log_totals(continents, json_dict, logger):
     """Log different totals."""
     
-    logger.info(f"Number of continents: {len(json_dict['continent']):,}. Continents present: {json_dict['continent']}.")
+    logger.info(f"Number of continents: {len(continents):,}. Continents present: {continents}.")
     logger.info(f"Number of basins: {len(json_dict['basin']):,}.")
     logger.info(f"Number of reaches: {len(json_dict['reaches']):,}.")
     logger.info(f"Number of HiVDI sets: {len(json_dict['hivdisets']):,}.")
@@ -200,8 +200,12 @@ def write_json(data_dir, json_dict, logger):
     # Write global JSON files
     json_file_list = []
     for key, value in json_dict.items():
-        if key == "json_files" or key == "continent": continue
-        json_file_list.append(write_json_file(data_dir, key, value, logger))
+        if key == "json_files": 
+            continue
+        elif key == "continent": 
+            json_file_list.append(value)
+        else:
+            json_file_list.append(write_json_file(data_dir, key, value, logger))
         
     return json_file_list
         
@@ -289,7 +293,7 @@ def combine_data():
     # Lists to populate
     json_dict = {
         "basin" : [],
-        "continent": continents,
+        "continent": pathlib.Path(args.datadir).joinpath(args.contfile),
         "cycle_passes" : {},
         "hivdisets" : [],
         "metrosets" : [],
@@ -323,7 +327,7 @@ def combine_data():
         delete_continent_json(json_dict["json_files"], logger)
         
     # Log different totals
-    log_totals(json_dict, logger)
+    log_totals(continents, json_dict, logger)
         
     end = datetime.datetime.now()
     print(f"Execution time: {end - start}")
