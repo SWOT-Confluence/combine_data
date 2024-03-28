@@ -27,6 +27,7 @@ import logging
 import pathlib
 import re
 import sys
+import math
 
 # Third-party imports
 import boto3
@@ -52,6 +53,9 @@ def create_args():
     arg_parser.add_argument("-x",
                             "--delete",
                             help="Indicate if continent-level JSON files should be deleted.",
+                            action="store_true")
+    arg_parser.add_argument("--chunking",
+                            help="Indicate if we should chunk the jsons into groups of 10,000 reaches.",
                             action="store_true")
     return arg_parser
 
@@ -180,7 +184,7 @@ def log_totals(continents, json_dict, logger):
     logger.info(f"Number of MetroMan sets: {len(json_dict['metrosets']):,}.")
     logger.info(f"Number of sic4DVar sets: {len(json_dict['sicsets']):,}.")
 
-def write_json(data_dir, json_dict, logger):
+def write_json(data_dir, json_dict, logger, chunking):
     """Combine continent-level data in to global data.
     
     Parameters
@@ -205,7 +209,12 @@ def write_json(data_dir, json_dict, logger):
         elif key == "continent": 
             json_file_list.append(value)
         else:
-            json_file_list.append(write_json_file(data_dir, key, value, logger))
+            json_files = write_json_file(data_dir, key, value, logger, chunking)
+            json_file_list.extend(json_files)
+            # if type(json_files) == list:
+            #     json_file_list.extend(json_files)
+            # else:
+            #     json_file_list.append(json_files)
         
     return json_file_list
         
@@ -217,7 +226,7 @@ def sort_cycle_pass(cycle_pass):
     
     return [ strtoi(cp) for cp in re.split(r'(\d+)', cycle_pass[0]) ]
             
-def write_json_file(data_dir, filename, data, logger):
+def write_json_file(data_dir, filename, data, logger, chunking):
     """Write data to JSON file.
     
     Paramenters
@@ -231,12 +240,48 @@ def write_json_file(data_dir, filename, data, logger):
     logger: logger
         Logger instance to use for logging statements
     """
-    
-    json_file = data_dir.joinpath(f"{filename}.json")
-    with open(json_file, 'w') as jf:
-        json.dump(data, jf, indent=2)
-        logger.info(f"Written: {filename}.json.")
-    return json_file
+    data_chunks = [data]
+    filenames = [filename]
+
+    if chunking:
+        if filename in ['sicsets', 'reaches', 'metrosets', 'reach_node', 'hivdisets']:
+
+            try:
+                if len(data)>10000:
+                    data_chunks = []
+                    filenames = []
+
+                    chunk_dict = {
+                    }
+                    chunk_num = math.ceil(len(data)/10000)
+                    for i in range(chunk_num):
+                        i_times_10k = i*10000
+                        # print(data[i_times_10k:i_times_10k+10000][-1])
+                        chunk_of_data = data[i_times_10k:i_times_10k+10000]
+                        data_chunks.append(chunk_of_data)
+                        filenames.append(filename + f'_{i}')
+                cnt = 0
+                for data_chunk in data_chunks:
+                    with open(data_dir.joinpath(f"{filename}_{cnt}.json"), 'w') as jf:
+                        json.dump(data_chunk, jf, indent=2)
+                        logger.info(f"Written: {filename}_{cnt}.json.")
+                        cnt += 1
+            except:
+                print(filename, 'failed...')
+        else:
+            json_file = data_dir.joinpath(f"{filename}.json")
+            with open(json_file, 'w') as jf:
+                json.dump(data, jf, indent=2)
+                logger.info(f"Written: {filename}.json.")
+               
+
+    else:
+        json_file = data_dir.joinpath(f"{filename}.json")
+        with open(json_file, 'w') as jf:
+            json.dump(data, jf, indent=2)
+            logger.info(f"Written: {filename}.json.")
+        
+    return filenames
 
 def upload(json_file_list, upload_bucket, logger):
     """Upload JSON files to S3 bucket."""
@@ -310,7 +355,7 @@ def combine_data():
     json_dict = combine_continents(continents, pathlib.Path(args.datadir), json_dict, logger)
     
     # Write out global json data
-    json_file_list = write_json(pathlib.Path(args.datadir), json_dict, logger)
+    json_file_list = write_json(pathlib.Path(args.datadir), json_dict, logger, args.chunking)
     
     # Upload JSON files to S3
     if args.uploadbucket:
