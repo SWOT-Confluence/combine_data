@@ -31,6 +31,7 @@ import sys
 # Third-party imports
 import boto3
 import botocore
+import fnmatch
    
 def create_args():
     """Create and return argparser with arguments."""
@@ -143,7 +144,18 @@ def combine_continents(continents, data_dir, json_dict, logger):
         # Concatenate continent-level data
         for key in json_dict.keys():
             if key == "json_files" or key == "continent": continue
-            json_dict = read_json_data(data_dir, continent, key, json_dict)
+            try:
+                json_dict = read_json_data(data_dir=data_dir, continent=continent, filename=key, json_dict=json_dict)
+            except Exception as e:
+                print(e)
+                print('failed to read', key, 'for', continent)
+            if key == 's3_list':
+                json_dict[key] = parse_duplicate_files(json_dict[key])
+            
+            if key == 's3_reach':
+                for reach_id in json_dict[key].keys():
+                    json_dict[key][reach_id] = parse_duplicate_files(json_dict[key][reach_id])
+
         
     return json_dict
 
@@ -274,6 +286,32 @@ def handle_error(error, logger):
     logger.error("System exiting.")
     sys.exit(1)
 
+def parse_duplicate_files(s3_urls:list):
+
+        """
+        In some cases, when shapefiles are processed more than once they leave both processings in the bucket, so we need to filter them.
+
+        """
+        parsed = []
+
+        for i in s3_urls:
+            # print(i[:-6])
+            # mult_process_bool = False
+            all_processings = fnmatch.filter(s3_urls, i[:-6]+'*')
+            if len(all_processings) > 1:
+                all_processings_nums = [int(i[-6:].replace('.zip', '')) for i in all_processings]
+                padded_max = str("{:02d}".format(max(all_processings_nums)))
+                max_path = fnmatch.filter(all_processings, f'*{padded_max}.zip')
+                parsed.append(max_path[0])
+                print('found a double', i)
+            else:
+                parsed.append(i)
+
+        parsed = list(set(parsed))
+        return parsed
+
+
+
 def combine_data():
     """Combine continent-level JSON files into global files."""
     
@@ -297,6 +335,7 @@ def combine_data():
         "cycle_passes" : {},
         "hivdisets" : [],
         "metrosets" : [],
+        "neosets" :[],
         "passes" : {},
         "reach_node" : [],
         "reaches" : [],
