@@ -26,7 +26,8 @@ import json
 import logging
 import pathlib
 import re
-import sys
+import sys   
+import os
 
 # Third-party imports
 import boto3
@@ -286,6 +287,16 @@ def handle_error(error, logger):
     logger.error("System exiting.")
     sys.exit(1)
 
+
+
+# Function to extract and convert the timestamp to a datetime object
+def extract_datetime(url):
+    # Find the position of the timestamp in the URL
+    timestamp_str = os.path.basename(url).split('_')[8]
+    # Convert the timestamp string to a datetime object
+    return datetime.datetime.strptime(timestamp_str, '%Y%m%dT%H%M%S')
+
+
 def parse_duplicate_files(s3_urls:list):
 
         """
@@ -308,7 +319,10 @@ def parse_duplicate_files(s3_urls:list):
                 parsed.append(i)
 
         parsed = list(set(parsed))
-        return parsed
+
+        sorted_urls = sorted(parsed, key=extract_datetime)
+
+        return sorted_urls
 
 
 
