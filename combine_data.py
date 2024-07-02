@@ -54,6 +54,10 @@ def create_args():
                             "--delete",
                             help="Indicate if continent-level JSON files should be deleted.",
                             action="store_true")
+    arg_parser.add_argument("-e",
+                            "--expanded",
+                            help="Indicate we are looking for expanded set files.",
+                            action="store_true")
     return arg_parser
 
 def load_continents(data_dir, cont_file):
@@ -85,9 +89,9 @@ def load_continents(data_dir, cont_file):
             if key == json_file_c and continent_dict[key] not in c:
                 c.append(continent_dict[key])
     
-    # Create new continent file
-    with open(f"{data_dir}/{cont_file}", 'w') as jf:
-        json.dump(c, jf, indent=2)
+    # # Create new continent file
+    # with open(f"{data_dir}/{cont_file}", 'w') as jf:
+    #     json.dump(c, jf, indent=2)
     
     # Return continents present
     return [ key for d in c for key in d.keys() ]
@@ -135,17 +139,21 @@ def combine_continents(continents, data_dir, json_dict, logger):
     """
     
     for continent in continents:
-        # Check if data is present for continent
-        basin_file = data_dir.joinpath(f"basin_{continent}.json")
-        if not basin_file.is_file():
-            logger.info(f"Continent data not present for: {continent.upper()}. Skipping continent.")
-            continue
+        # # # Check if data is present for continent
+        # basin_file = data_dir.joinpath(f"basin_{continent}.json")
+        # if not basin_file.is_file():
+        #     logger.info(f"Continent data not present for: {continent.upper()}. Skipping continent.")
+        #     continue
         
         # Concatenate continent-level data
-        for key in json_dict.keys():
+        key_list = json_dict.keys()
+
+        for key in key_list:
             if key == "json_files" or key == "continent": continue
             try:
                 json_dict = read_json_data(data_dir=data_dir, continent=continent, filename=key, json_dict=json_dict)
+                print('yee')
+                print(json_dict)
             except Exception as e:
                 print(e)
                 print('failed to read', key, 'for', continent)
@@ -174,23 +182,36 @@ def read_json_data(data_dir, continent, filename, json_dict):
     """
     
     json_file = data_dir.joinpath(f"{filename}_{continent}.json")
+    print(json_file)
+    print('here is file')
     with open(json_file) as jf:
         if filename == "cycle_passes" or filename == "passes" or filename == "s3_reach":
             json_dict[filename].update(json.load(jf))
         else:
-            json_dict[filename] += json.load(jf)
+            try:
+                json_dict[filename] += json.load(jf)
+            except Exception as e:
+                print('here errror!!!!!!')
+                print(e)
+
+            print('loaded the file')
         json_dict["json_files"] += [json_file]
     return json_dict
 
 def log_totals(continents, json_dict, logger):
     """Log different totals."""
     
-    logger.info(f"Number of continents: {len(continents):,}. Continents present: {continents}.")
-    logger.info(f"Number of basins: {len(json_dict['basin']):,}.")
-    logger.info(f"Number of reaches: {len(json_dict['reaches']):,}.")
-    logger.info(f"Number of HiVDI sets: {len(json_dict['hivdisets']):,}.")
-    logger.info(f"Number of MetroMan sets: {len(json_dict['metrosets']):,}.")
-    logger.info(f"Number of sic4DVar sets: {len(json_dict['sicsets']):,}.")
+    for key in json_dict.keys():
+        try:
+            logger.info(f"Number of objects in {key}:{len(json_dict[key])} ")
+        except:
+            pass
+    # logger.info(f"Number of continents: {len(continents):,}. Continents present: {continents}.")
+    # logger.info(f"Number of basins: {len(json_dict['basin']):,}.")
+    # logger.info(f"Number of reaches: {len(json_dict['reaches']):,}.")
+    # logger.info(f"Number of HiVDI sets: {len(json_dict['hivdisets']):,}.")
+    # logger.info(f"Number of MetroMan sets: {len(json_dict['metrosets']):,}.")
+    # logger.info(f"Number of sic4DVar sets: {len(json_dict['sicsets']):,}.")
 
 def write_json(data_dir, json_dict, logger):
     """Combine continent-level data in to global data.
@@ -206,8 +227,10 @@ def write_json(data_dir, json_dict, logger):
     """
     
     # Sort cycle pass data
-    json_dict["cycle_passes"] = OrderedDict(sorted(json_dict["cycle_passes"].items(), key=sort_cycle_pass)) 
-    json_dict["passes"] = OrderedDict(sorted(json_dict["passes"].items(), key=sort_cycle_pass)) 
+    if 'cycle_passes' in list(json_dict.keys()):
+        json_dict["cycle_passes"] = OrderedDict(sorted(json_dict["cycle_passes"].items(), key=sort_cycle_pass))
+    if 'passes' in list(json_dict.keys()): 
+        json_dict["passes"] = OrderedDict(sorted(json_dict["passes"].items(), key=sort_cycle_pass)) 
     
     # Write global JSON files
     json_file_list = []
@@ -332,21 +355,29 @@ def combine_data():
     json_dict = {
         "basin" : [],
         "continent": pathlib.Path(args.datadir).joinpath(args.contfile),
-        "cycle_passes" : {},
+        # "cycle_passes" : {},
         "hivdisets" : [],
         "metrosets" : [],
         "neosets" :[],
-        "passes" : {},
-        "reach_node" : [],
+        # "passes" : {},
+        # "reach_node" : [],
         "reaches" : [],
-        "s3_list" : [],
-        "s3_reach": {},
+        # "s3_list" : [],
+        # "s3_reach": {},
         "sicsets" : [],
         "json_files": []
-    }    
+    }
     
+
+    if args.expanded:
+        key_list = ['expanded_'+i if i != 'reaches' else 'expanded_reaches_of_interest' for i in list(json_dict.keys())]
+        json_dict = {s: [] for s in key_list}
+
+
     # Combine continent-level data
     json_dict = combine_continents(continents, pathlib.Path(args.datadir), json_dict, logger)
+    print('here')
+    print(json_dict)
     
     # Write out global json data
     json_file_list = write_json(pathlib.Path(args.datadir), json_dict, logger)
