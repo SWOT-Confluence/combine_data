@@ -122,7 +122,7 @@ def get_logger():
 
     # Return logger
     return logger
-def parse_reach_list_for_output(reach_list:list, continent_prefix:str, sword_version:int):
+def parse_reach_list_for_output(reach_list:list, sword_version:int):
 
 #   {
 #     "reach_id": 12798000121,
@@ -130,15 +130,15 @@ def parse_reach_list_for_output(reach_list:list, continent_prefix:str, sword_ver
 #     "swot": "12798000121_SWOT.nc",
 #     "sos": "af_sword_v16_SOS_priors.nc"
 #   }
-
+    continent_codes = { '1': "af", '2': "eu", '3': "as", '4': "as", '5': "oc", '6': "sa", '7': "na", '8': "na", '9':"na" }
     reach_dict_list = []
     for i in reach_list:
         reach_dict_list.append(
             {
             "reach_id": int(i),
-            "sword": f"{continent_prefix}_sword_v{sword_version}.nc",
+            "sword": f"{continent_codes[str(i)[0]]}_sword_v{sword_version}.nc",
             "swot": f"{i}_SWOT.nc",
-            "sos": f"{continent_prefix}_sword_v{sword_version}_SOS_priors.nc"
+            "sos": f"{continent_codes[str(i)[0]]}_sword_v{sword_version}_SOS_priors.nc"
             }
         )
     return reach_dict_list
@@ -203,7 +203,7 @@ def combine_continents(continents, data_dir, json_dict, sword_version, logger):
 
 
         base_reaches = [int(os.path.basename(i).split('_')[0]) for i in glob.glob(os.path.join(data_dir, 'swot', '*.nc'))]
-        reaches_dict = parse_reach_list_for_output(reach_list=base_reaches, continent_prefix=continent, sword_version=sword_version)
+        reaches_dict = parse_reach_list_for_output(reach_list=base_reaches,sword_version=sword_version)
         json_dict['reaches'] = reaches_dict
 
         basin_ids = set(list(map(lambda x: int(str(x)[0:4]), base_reaches)))
