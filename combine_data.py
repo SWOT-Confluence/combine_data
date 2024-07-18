@@ -97,7 +97,11 @@ def load_continents(data_dir:str , cont_file:str, expanded):
     }
 
     # Parses reach jsons to find what continents have data
-    all_conts = [ continent_dict[os.path.basename(i).split('_')[-1].replace('.json', '')] for i in glob.glob(os.path.join(data_dir, '*reaches*.json')) if os.path.basename(i).split('_')[-1].replace('.json', '') not in ['interest', 'reaches']]
+
+    # all_conts = [ continent_dict[os.path.basename(i).split('_')[-1].replace('.json', '')] for i in glob.glob(os.path.join(data_dir, '*reaches*.json')) if os.path.basename(i).split('_')[-1].replace('.json', '') not in ['interest', 'reaches']]
+
+
+
 
     # Create new continent file
     with open(os.path.join(data_dir, cont_file), 'w') as jf:
@@ -176,7 +180,6 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
         
         if not expanded:
             all_continent_files = [i for i in all_continent_files if not os.path.basename(i).startswith('expanded') ]
-
         for continent_file in all_continent_files:
             with open(continent_file) as jf:
                 data = json.load(jf)
@@ -221,35 +224,6 @@ def create_basin_data(basin_id, base_reaches, sword_version):
         "sos": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_SOS_priors.nc"
     }
 
-def read_json_data(data_dir, continent, filename, json_dict, sword_version):
-    """
-    Parameters
-    -----------
-    data_dir: pathlib.Path
-        Path to datagen directory
-    continent: str
-        Two-letter continent string
-    filename: str
-        String name of JSON file (basin, reaches, etc...) this is key from earlier in the script, first time through is empty
-    json_dict: dict
-        Dictionary of global data lists
-    """
-    # if expanded this would be expanded_metrosets_na which came from the expanded setfinder
-    json_file = data_dir.joinpath(f"{filename}_{continent}.json")
-    with open(json_file) as jf:
-        if filename == "cycle_passes" or filename == "passes" or filename == "s3_reach" or filename=='reaches':
-            if filename == 'reaches':
-                return json_dict
-        else:
-            try:
-                
-                json_dict[filename] += json.load(jf)
-            except Exception as e:
-                print(e)
-
-        json_dict["json_files"] += [json_file]
-    return json_dict
-
 def upload(json_file_list, upload_bucket, logger):
     """Upload JSON files to S3 bucket."""
     
@@ -284,8 +258,16 @@ def combine_data():
     logger = get_logger()
     
     # Load continents
-    continents = load_continents(data_dir = args.datadir, cont_file = args.contfile, expanded = args.expanded)
-    logger.info(f"Written: {args.contfile}")
+    # continents = load_continents(data_dir = args.datadir, cont_file = args.contfile, expanded = args.expanded)
+    # logger.info(f"Written: {args.contfile}")
+    continents = [
+        "af",
+        "as",
+        "eu",
+        "na",
+        "oc",
+        "sa"
+    ]
 
     # Combine continent-level data
     json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded,logger)
