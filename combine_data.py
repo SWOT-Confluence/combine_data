@@ -39,6 +39,15 @@ import os
 import boto3
 import botocore
 import fnmatch
+
+CONTINENTS = [
+    { "af" : [1] },
+    { "as" : [4, 3] },
+    { "eu" : [2] },
+    { "na" : [7, 8, 9] },
+    { "oc" : [5] },
+    { "sa" : [6] }
+]
    
 def create_args():
     """Create and return argparser with arguments."""
@@ -150,6 +159,7 @@ def parse_reach_list_for_output(reach_list:list, sword_version:int):
             }
         )
     return reach_dict_list
+
 def combine_continents(continents, data_dir, sword_version,expanded, logger):
     """Combine continent-level data in to global data.
     
@@ -170,6 +180,7 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
         Dictionary of global data lists
     """
     out_dict = {}
+    continent_json = {}
     for continent in continents:
         if expanded:
             prefix = 'expanded_reaches_of_interest'
@@ -177,6 +188,13 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
             prefix = ''
         
         all_continent_files = glob.glob(os.path.join(data_dir, f'{prefix}*{continent}*'))
+        
+        if all_continent_files:
+            key = all_continent_files[0].split("_")[-1].split(".")[0]
+            for element in CONTINENTS:
+                for c, i in element.items():
+                    if c == key:
+                        continent_json[key] = i
         
         if not expanded:
             all_continent_files = [i for i in all_continent_files if not os.path.basename(i).startswith('expanded') ]
@@ -211,6 +229,11 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
         with open(outpath, 'w') as jf:
             json.dump(out_dict[a_key], jf, indent=2)
             logger.info(f"Written: {outpath}.")
+    
+    c_file = os.path.join(data_dir, 'continent.json')
+    with open(c_file, 'w') as jf:
+        json.dump(continent_json, jf, indent=2)
+        logger.info(f"Written: {c_file}")
 
     return reaches_json_list
 
