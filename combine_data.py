@@ -16,6 +16,12 @@ The following files are combined and created:
 
 Files are written out to directory referenced by 'datadir' command line argument.
 """
+# Example deployment
+
+# expanded
+
+# not expanded
+# docker run -v /storage/repos/setfinder/testing:/data combine_data -d /data -c expanded_continent.json
 
 # Standard imports
 import argparse
@@ -65,7 +71,7 @@ def create_args():
                             action="store_true")
     return arg_parser
 
-def load_continents(data_dir, cont_file):
+def load_continents(data_dir:str , cont_file:str, expanded):
     """Load continents from JSON file.
     
     Parameters
@@ -73,7 +79,14 @@ def load_continents(data_dir, cont_file):
     cont_json : pathlib.Path
         Path to continent.json file.
     """
-    
+
+    if expanded:
+        cont_file = 'expanded_' + cont_file
+
+
+    if len(glob.glob(os.path.join(data_dir, '*'))) == 0:
+        raise ValueError('no files found at ', glob.glob(os.path.join(data_dir, '*')))
+
     continent_dict = {
         "af": {"af" : [1]},
         "as": {"as" : [4, 3]},
@@ -82,24 +95,19 @@ def load_continents(data_dir, cont_file):
         "oc": {"oc" : [5]},
         "sa": {"sa" : [6]}
     }
+
+    # Parses reach jsons to find what continents have data
+
+    # all_conts = [ continent_dict[os.path.basename(i).split('_')[-1].replace('.json', '')] for i in glob.glob(os.path.join(data_dir, '*reaches*.json')) if os.path.basename(i).split('_')[-1].replace('.json', '') not in ['interest', 'reaches']]
+
+
+
+
+    # Create new continent file
+    with open(os.path.join(data_dir, cont_file), 'w') as jf:
+        json.dump(all_conts, jf, indent=2)
     
-    # Grab datagen JSON files
-    json_files = glob.glob(f"{data_dir}/*.json")
-    
-    # Parse the files and determine continents
-    c = []
-    for json_file in json_files:
-        for key in continent_dict.keys():
-            json_file_c = json_file.split('.')[-2].split('_')[-1]
-            if key == json_file_c and continent_dict[key] not in c:
-                c.append(continent_dict[key])
-    
-    # # Create new continent file
-    # with open(f"{data_dir}/{cont_file}", 'w') as jf:
-    #     json.dump(c, jf, indent=2)
-    
-    # Return continents present
-    return [ key for d in c for key in d.keys() ]
+    return [list(i.keys())[0] for i in all_conts]
 
 def get_logger():
     """Return a formatted logger object."""
@@ -142,7 +150,7 @@ def parse_reach_list_for_output(reach_list:list, sword_version:int):
             }
         )
     return reach_dict_list
-def combine_continents(continents, data_dir, json_dict, sword_version, logger):
+def combine_continents(continents, data_dir, sword_version,expanded, logger):
     """Combine continent-level data in to global data.
     
     Parameters
@@ -161,58 +169,50 @@ def combine_continents(continents, data_dir, json_dict, sword_version, logger):
     dict
         Dictionary of global data lists
     """
-    
+    out_dict = {}
     for continent in continents:
-        # # # Check if data is present for continent
-        # basin_file = data_dir.joinpath(f"basin_{continent}.json")
-        # if not basin_file.is_file():
-        #     logger.info(f"Continent data not present for: {continent.upper()}. Skipping continent.")
-        #     continue
+        if expanded:
+            prefix = 'expanded_reaches_of_interest'
+        else:
+            prefix = ''
         
-        # Concatenate continent-level data
-        key_list = json_dict.keys()
-        # if expanded it will be expanded_key
-        # if it is not it will be key
-        # all empty
-
-        for key in key_list:
-            if key == "json_files" or key == "continent" or key == "reaches" or key=="basin": continue
-            try:
-                json_dict = read_json_data(data_dir=data_dir, continent=continent, filename=key, json_dict=json_dict, sword_version = sword_version)
-            except Exception as e:
-                print(e)
-                print('failed to read', key, 'for', continent)
-
-            if key == 's3_list':
-                json_dict[key] = parse_duplicate_files(json_dict[key])
+        all_continent_files = glob.glob(os.path.join(data_dir, f'{prefix}*{continent}*'))
+        
+        if not expanded:
+            all_continent_files = [i for i in all_continent_files if not os.path.basename(i).startswith('expanded') ]
+        for continent_file in all_continent_files:
+            with open(continent_file) as jf:
+                data = json.load(jf)
             
-            elif key == 's3_reach':
-                for reach_id in json_dict[key].keys():
-                    json_dict[key][reach_id] = parse_duplicate_files(json_dict[key][reach_id])
+            global_file_basename = os.path.basename(continent_file).replace(f'_{continent}.json', '')
 
-            # elif key == 'expanded_reaches_of_interest' or key == 'reaches':
+            if global_file_basename not in list(out_dict.keys()):
+                out_dict[global_file_basename] = []
+
+            out_dict[global_file_basename].extend(data)
+
+            
+            if not expanded and os.path.basename(continent_file).startswith('reaches'):
+                if 'basin' not in list(out_dict.keys()):
+                    out_dict['basin'] = []
+                print('making basin from ', continent_file)
+                base_reaches = [reach_data["reach_id"] for reach_data in data]
+                basin_ids = list(set([str(reach)[:4] for reach in base_reaches]))
                 
-            # add in original reaches of interest
-            elif key == 'expanded_reaches_of_interest':
-                expanded_reaches = list(json_dict[key])
-                with open(os.path.join(data_dir, 'reaches_of_interest.json')) as f:
-                    base_reaches = json.load(f)
-                    expanded_reaches.extend(base_reaches)
-                    reach_list = list(set(expanded_reaches))
-                    json_dict[key] = reach_list
+                basin_data = [create_basin_data(basin_id, base_reaches, sword_version) for basin_id in basin_ids]
+
+                out_dict['basin'].extend(basin_data)
 
 
-        base_reaches = [int(os.path.basename(i).split('_')[0]) for i in glob.glob(os.path.join(data_dir, 'swot', '*.nc'))]
-        reaches_dict = parse_reach_list_for_output(reach_list=base_reaches,sword_version=sword_version)
-        json_dict['reaches'] = reaches_dict
+    reaches_json_list = []
+    for a_key in list(out_dict.keys()):
+        outpath = os.path.join(data_dir, a_key + '.json')
+        reaches_json_list.append(outpath)
+        with open(outpath, 'w') as jf:
+            json.dump(out_dict[a_key], jf, indent=2)
+            logger.info(f"Written: {outpath}.")
 
-        basin_ids = set(list(map(lambda x: int(str(x)[0:4]), base_reaches)))
-
-        basin_data = list(map(lambda basin_id: create_basin_data(basin_id, base_reaches, sword_version), basin_ids))
-        json_dict['basin'] = basin_data
-
-        
-    return json_dict
+    return reaches_json_list
 
 def create_basin_data(basin_id, base_reaches, sword_version):
     continent_codes = { '1': "af", '2': "eu", '3': "as", '4': "as", '5': "oc", '6': "sa", '7': "na", '8': "na", '9':"na" }
@@ -223,122 +223,6 @@ def create_basin_data(basin_id, base_reaches, sword_version):
         "sword": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}.nc",
         "sos": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_SOS_priors.nc"
     }
-
-def read_json_data(data_dir, continent, filename, json_dict, sword_version):
-    """
-    Parameters
-    -----------
-    data_dir: pathlib.Path
-        Path to datagen directory
-    continent: str
-        Two-letter continent string
-    filename: str
-        String name of JSON file (basin, reaches, etc...) this is key from earlier in the script, first time through is empty
-    json_dict: dict
-        Dictionary of global data lists
-    """
-    # if expanded this would be expanded_metrosets_na which came from the expanded setfinder
-    json_file = data_dir.joinpath(f"{filename}_{continent}.json")
-    with open(json_file) as jf:
-        if filename == "cycle_passes" or filename == "passes" or filename == "s3_reach" or filename=='reaches':
-            if filename == 'reaches':
-                return json_dict
-        else:
-            try:
-                
-                json_dict[filename] += json.load(jf)
-            except Exception as e:
-                print(e)
-
-        json_dict["json_files"] += [json_file]
-    return json_dict
-
-def log_totals(continents, json_dict, logger):
-    """Log different totals."""
-    
-    for key in json_dict.keys():
-        try:
-            logger.info(f"Number of objects in {key}:{len(json_dict[key])} ")
-        except:
-            pass
-    # logger.info(f"Number of continents: {len(continents):,}. Continents present: {continents}.")
-    # logger.info(f"Number of basins: {len(json_dict['basin']):,}.")
-    # logger.info(f"Number of reaches: {len(json_dict['reaches']):,}.")
-    # logger.info(f"Number of HiVDI sets: {len(json_dict['hivdisets']):,}.")
-    # logger.info(f"Number of MetroMan sets: {len(json_dict['metrosets']):,}.")
-    # logger.info(f"Number of sic4DVar sets: {len(json_dict['sicsets']):,}.")
-
-def write_json(data_dir, json_dict, logger):
-    """Combine continent-level data in to global data.
-    
-    Parameters
-    ----------
-    data_dir: pathlib.Path
-        Path to datagen directory
-    json_dict: dict
-        Dictionary of global data lists
-    logger: logger
-        Logger instance to use for logging statements
-    """
-    
-    # Sort cycle pass data
-    if 'cycle_passes' in list(json_dict.keys()):
-        json_dict["cycle_passes"] = OrderedDict(sorted(json_dict["cycle_passes"].items(), key=sort_cycle_pass))
-    if 'passes' in list(json_dict.keys()): 
-        json_dict["passes"] = OrderedDict(sorted(json_dict["passes"].items(), key=sort_cycle_pass)) 
-    
-    # Write global JSON files
-    json_file_list = []
-    for key, value in json_dict.items():
-        if key == "json_files": 
-            continue
-        elif key == "continent": 
-            json_file_list.append(value)
-        # elif key == 'reaches':
-        #     # Convert each dictionary to a frozenset of its items to make it hashable
-        #     # Use a set to remove duplicates
-        #     unique_dicts = set(frozenset(d.items()) for d in value)
-
-        #     # Convert frozenset objects back to dictionaries
-        #     value = [dict(d) for d in unique_dicts]
-        elif key == 'expanded_reaches_of_interest':
-            value == list(set(value))
-            
-
-        else:
-            json_file_list.append(write_json_file(data_dir, key, value, logger))
-        
-        
-    return json_file_list
-        
-def strtoi(text):
-    return int(text) if text.isdigit() else text
-
-def sort_cycle_pass(cycle_pass):
-    """Sort cycle/pass data so that they are in ascending order."""
-    
-    return [ strtoi(cp) for cp in re.split(r'(\d+)', cycle_pass[0]) ]
-            
-def write_json_file(data_dir, filename, data, logger):
-    """Write data to JSON file.
-    
-    Paramenters
-    -----------
-    data_dir: pathlib.Path
-        Path to datagen directory
-    filename: str
-        String name of JSON file (basin, reaches, etc...)
-    data: list
-        Global data list
-    logger: logger
-        Logger instance to use for logging statements
-    """
-    
-    json_file = data_dir.joinpath(f"{filename}.json")
-    with open(json_file, 'w') as jf:
-        json.dump(data, jf, indent=2)
-        logger.info(f"Written: {filename}.json.")
-    return json_file
 
 def upload(json_file_list, upload_bucket, logger):
     """Upload JSON files to S3 bucket."""
@@ -360,47 +244,6 @@ def upload(json_file_list, upload_bucket, logger):
             logger.info(f"Uploaded {json_file} to {upload_bucket}.")    
         except botocore.exceptions.ClientError as e:
             raise e
-        
-def delete_continent_json(json_files, logger):
-    """Delete files in list."""
-    
-    for json_file in json_files: 
-        json_file.unlink()
-        logger.info(f"Deleted: {json_file}")
-        
-def handle_error(error, logger):
-    """Print out error message and exit."""
-    
-    logger.error("Error encountered.")
-    logger.error(error)
-    logger.error("System exiting.")
-    sys.exit(1)
-
-def parse_duplicate_files(s3_urls:list):
-
-        """
-        In some cases, when shapefiles are processed more than once they leave both processings in the bucket, so we need to filter them.
-
-        """
-        parsed = []
-
-        for i in s3_urls:
-            # print(i[:-6])
-            # mult_process_bool = False
-            all_processings = fnmatch.filter(s3_urls, i[:-6]+'*')
-            if len(all_processings) > 1:
-                all_processings_nums = [int(i[-6:].replace('.zip', '')) for i in all_processings]
-                padded_max = str("{:02d}".format(max(all_processings_nums)))
-                max_path = fnmatch.filter(all_processings, f'*{padded_max}.zip')
-                parsed.append(max_path[0])
-                print('found a double', i)
-            else:
-                parsed.append(i)
-
-        parsed = list(set(parsed))
-        return parsed
-
-
 
 def combine_data():
     """Combine continent-level JSON files into global files."""
@@ -415,41 +258,19 @@ def combine_data():
     logger = get_logger()
     
     # Load continents
-    continents = load_continents(args.datadir, args.contfile)
-    logger.info(f"Written: {args.contfile}")
-    
-    # Lists to populate
-    json_dict = {
-        "basin" : [],
-        "continent": pathlib.Path(args.datadir).joinpath(args.contfile),
-        # "cycle_passes" : {},
-        "hivdisets" : [],
-        "metrosets" : [],
-        "neosets" :[],
-        # "passes" : {},
-        # "reach_node" : [],
-        "reaches" : [],
-        # "s3_list" : [],
-        # "s3_reach": {},
-        "sicsets" : [],
-        "json_files": []
-    }
-    
-
-    if args.expanded:
-        key_list = ['expanded_'+i if i != 'reaches' else 'expanded_reaches_of_interest' for i in list(json_dict.keys())]
-        # key_list = ['expanded_'+i if i != 'reaches' for i in list(json_dict.keys())]
-        json_dict = {s: [] for s in key_list}
-    # else:
-    #     key_list = [i if i != 'reaches' for i in list(json_dict.keys())]
-    #     json_dict = {s: [] for s in key_list}
-
+    # continents = load_continents(data_dir = args.datadir, cont_file = args.contfile, expanded = args.expanded)
+    # logger.info(f"Written: {args.contfile}")
+    continents = [
+        "af",
+        "as",
+        "eu",
+        "na",
+        "oc",
+        "sa"
+    ]
 
     # Combine continent-level data
-    json_dict = combine_continents(continents, pathlib.Path(args.datadir), json_dict, args.sword_version, logger)
-    
-    # Write out global json data
-    json_file_list = write_json(pathlib.Path(args.datadir), json_dict, logger)
+    json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded,logger)
     
     # Upload JSON files to S3
     if args.uploadbucket:
@@ -460,13 +281,6 @@ def combine_data():
             logger.error(e)
             logger.info("System exiting.")
             sys.exit(1)
-    
-    # Delete continent-level data
-    if args.delete:
-        delete_continent_json(json_dict["json_files"], logger)
-        
-    # Log different totals
-    log_totals(continents, json_dict, logger)
         
     end = datetime.datetime.now()
     print(f"Execution time: {end - start}")
