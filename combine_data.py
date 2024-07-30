@@ -189,7 +189,7 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
         
         all_continent_files = glob.glob(os.path.join(data_dir, f'{prefix}*{continent}*'))
         
-        if all_continent_files:
+        if all_continent_files and not expanded:
             key = all_continent_files[0].split("_")[-1].split(".")[0]
             for element in CONTINENTS:
                 for c, i in element.items():
@@ -230,10 +230,11 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
             json.dump(out_dict[a_key], jf, indent=2)
             logger.info(f"Written: {outpath}.")
     
-    c_file = os.path.join(data_dir, 'continent.json')
-    with open(c_file, 'w') as jf:
-        json.dump(continent_json, jf, indent=2)
-        logger.info(f"Written: {c_file}")
+    if not expanded:
+        c_file = os.path.join(data_dir, 'continent.json')
+        with open(c_file, 'w') as jf:
+            json.dump(continent_json, jf, indent=2)
+            logger.info(f"Written: {c_file}")
 
     return reaches_json_list
 
