@@ -230,6 +230,7 @@ def upload(json_file_list, upload_bucket, logger):
     s3 = boto3.client("s3")
     date_prefix = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
     for json_file in json_file_list:
+        json_file = pathlib.Path(json_file)
         try:
             # Upload under date prefix
             s3.upload_file(str(json_file),
