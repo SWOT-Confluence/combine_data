@@ -302,7 +302,7 @@ def combine_data():
     args = arg_parser.parse_args()
     
     for arg in vars(args):
-        logger.info(arg, ":", getattr(args, arg))
+        logger.info("%s: %s", arg, getattr(args, arg))
     
     # Load continents
     # continents = load_continents(data_dir = args.datadir, cont_file = args.contfile, expanded = args.expanded)
