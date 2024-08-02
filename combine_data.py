@@ -294,15 +294,15 @@ def combine_data():
     
     start = datetime.datetime.now()
     
+    # Get logger
+    logger = get_logger()
+    
     # Command line arguments
     arg_parser = create_args()
     args = arg_parser.parse_args()
     
     for arg in vars(args):
-        print(arg, ":", getattr(args, arg))
-    
-    # Get logger
-    logger = get_logger()
+        logger.info(arg, ":", getattr(args, arg))
     
     # Load continents
     # continents = load_continents(data_dir = args.datadir, cont_file = args.contfile, expanded = args.expanded)
