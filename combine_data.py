@@ -248,27 +248,39 @@ def create_basin_data(basin_id, base_reaches, sword_version):
         "sos": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_SOS_priors.nc"
     }
 
-def upload(json_file_list, upload_bucket, logger):
+def upload(json_file_list, upload_bucket, input_dir, expanded, logger):
     """Upload JSON files to S3 bucket."""
     
     s3 = boto3.client("s3")
     date_prefix = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
-    for json_file in json_file_list:
-        json_file = pathlib.Path(json_file)
-        try:
+    try:
+        for json_file in json_file_list:            
+            json_file = pathlib.Path(json_file)
+            if json_file.name == "expanded_reaches_of_interest.json": continue
+            
             # Upload under date prefix
             s3.upload_file(str(json_file),
-                           upload_bucket,
-                           f"{date_prefix}/{json_file.name}",
-                           ExtraArgs={"ServerSideEncryption": "aws:kms"})
+                        upload_bucket,
+                        f"{date_prefix}/{json_file.name}",
+                        ExtraArgs={"ServerSideEncryption": "aws:kms"})
             # Upload to root of bucket
             s3.upload_file(str(json_file),
-                           upload_bucket,
-                           json_file.name,
-                           ExtraArgs={"ServerSideEncryption": "aws:kms"})
-            logger.info(f"Uploaded {json_file} to {upload_bucket}.")    
-        except botocore.exceptions.ClientError as e:
-            raise e
+                        upload_bucket,
+                        json_file.name,
+                        ExtraArgs={"ServerSideEncryption": "aws:kms"})
+            logger.info(f"Uploaded {json_file} to {upload_bucket}.")
+        
+        # Upload expanded reaches of interest
+        expanded_roi = pathlib.Path(input_dir).joinpath("expanded_reaches_of_interest.json")
+        if not expanded and expanded_roi.exists():
+            s3.upload_file(str(expanded_roi),
+                                upload_bucket,
+                                expanded_roi.name,
+                                ExtraArgs={"ServerSideEncryption": "aws:kms"})
+            logger.info(f"Uploaded {expanded_roi} to {upload_bucket}.")
+        
+    except botocore.exceptions.ClientError as e:
+        raise e
 
 def combine_data():
     """Combine continent-level JSON files into global files."""
@@ -278,6 +290,9 @@ def combine_data():
     # Command line arguments
     arg_parser = create_args()
     args = arg_parser.parse_args()
+    
+    for arg in vars(args):
+        print(arg, ":", getattr(args, arg))
     
     # Get logger
     logger = get_logger()
@@ -295,13 +310,13 @@ def combine_data():
     ]
 
     # Combine continent-level data
-    json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded,logger)
+    json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded, logger)
     
     # Upload JSON files to S3
     if args.uploadbucket:
 
         try:
-            upload(json_file_list, args.uploadbucket, logger)
+            upload(json_file_list, args.uploadbucket, args.datadir, args.expanded, logger)
         except botocore.exceptions.ClientError as e:
             logger.error(e)
             logger.info("System exiting.")
