@@ -264,21 +264,27 @@ def upload(json_file_list, upload_bucket, input_dir, expanded, logger):
                         upload_bucket,
                         f"{date_prefix}/{json_file.name}",
                         ExtraArgs={"ServerSideEncryption": "aws:kms"})
+            logger.info(f"Uploaded {json_file} to {upload_bucket}.")
             # Upload to root of bucket
             s3.upload_file(str(json_file),
                         upload_bucket,
                         json_file.name,
                         ExtraArgs={"ServerSideEncryption": "aws:kms"})
-            logger.info(f"Uploaded {json_file} to {upload_bucket}.")
+            logger.info(f"Uploaded {json_file} to {upload_bucket}/{date_prefix}.")
         
         # Upload expanded reaches of interest
         expanded_roi = pathlib.Path(input_dir).joinpath("expanded_reaches_of_interest.json")
-        if not expanded and expanded_roi.exists():
-            s3.upload_file(str(expanded_roi),
+        s3.upload_file(str(expanded_roi),
                                 upload_bucket,
                                 expanded_roi.name,
                                 ExtraArgs={"ServerSideEncryption": "aws:kms"})
-            logger.info(f"Uploaded {expanded_roi} to {upload_bucket}.")
+        logger.info(f"Uploaded {expanded_roi} to {upload_bucket}.")
+        if not expanded and expanded_roi.exists():
+            s3.upload_file(str(expanded_roi),
+                                upload_bucket,
+                                f"{date_prefix}/{expanded_roi.name}",
+                                ExtraArgs={"ServerSideEncryption": "aws:kms"})
+            logger.info(f"Uploaded {expanded_roi} to {upload_bucket}/{date_prefix}.")
         
     except botocore.exceptions.ClientError as e:
         raise e
