@@ -232,6 +232,7 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
     
     if not expanded:
         c_file = os.path.join(data_dir, 'continent.json')
+        reaches_json_list.append(c_file)
         with open(c_file, 'w') as jf:
             json.dump(continent_json, jf, indent=2)
             logger.info(f"Written: {c_file}")
