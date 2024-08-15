@@ -274,7 +274,8 @@ def upload(json_file_list, upload_bucket, input_dir, expanded, logger):
         
         # Upload expanded reaches of interest
         expanded_roi = pathlib.Path(input_dir).joinpath("expanded_reaches_of_interest.json")
-        s3.upload_file(str(expanded_roi),
+        if expanded_roi.exists():
+            s3.upload_file(str(expanded_roi),
                                 upload_bucket,
                                 expanded_roi.name,
                                 ExtraArgs={"ServerSideEncryption": "aws:kms"})
