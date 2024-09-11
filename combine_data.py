@@ -183,12 +183,10 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
     continent_json = {}
     for continent in continents:
         if expanded:
-            prefix = 'expanded_reaches_of_interest'
+            all_continent_files = glob.glob(os.path.join(data_dir, f'expanded_reaches_of_interest_{continent}.json'))
         else:
-            prefix = ''
-        
-        all_continent_files = glob.glob(os.path.join(data_dir, f'{prefix}*{continent}*'))
-        
+            all_continent_files = glob.glob(os.path.join(data_dir, f'*_{continent}.json'))
+
         if all_continent_files and not expanded:
             key = all_continent_files[0].split("_")[-1].split(".")[0]
             for element in CONTINENTS:
@@ -255,7 +253,7 @@ def upload(json_file_list, upload_bucket, input_dir, expanded, logger):
     s3 = boto3.client("s3")
     date_prefix = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
     try:
-        for json_file in json_file_list:            
+        for json_file in json_file_list:
             json_file = pathlib.Path(json_file)
             if json_file.name == "expanded_reaches_of_interest.json": continue
             
