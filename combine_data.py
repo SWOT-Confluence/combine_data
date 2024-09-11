@@ -243,7 +243,7 @@ def create_basin_data(basin_id, base_reaches, sword_version):
     return {
         "basin_id": basin_id, 
         "reach_id": [reach_id for reach_id in base_reaches if str(reach_id).startswith(str(basin_id))],
-        "sword": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}.nc",
+        "sword": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_patch.nc",
         "sos": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_SOS_priors.nc"
     }
 
