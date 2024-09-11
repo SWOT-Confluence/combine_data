@@ -180,7 +180,7 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
         Dictionary of global data lists
     """
     out_dict = {}
-    continent_json = {}
+    continent_json = []
     for continent in continents:
         if expanded:
             all_continent_files = glob.glob(os.path.join(data_dir, f'expanded_reaches_of_interest_{continent}.json'))
@@ -192,7 +192,7 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
             for element in CONTINENTS:
                 for c, i in element.items():
                     if c == key:
-                        continent_json[key] = i
+                        continent_json.append({key: i})
         
         if not expanded:
             all_continent_files = [i for i in all_continent_files if not os.path.basename(i).startswith('expanded') ]
