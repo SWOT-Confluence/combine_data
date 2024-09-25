@@ -39,6 +39,15 @@ import os
 import boto3
 import botocore
 import fnmatch
+
+CONTINENTS = [
+    { "af" : [1] },
+    { "as" : [4, 3] },
+    { "eu" : [2] },
+    { "na" : [7, 8, 9] },
+    { "oc" : [5] },
+    { "sa" : [6] }
+]
    
 def create_args():
     """Create and return argparser with arguments."""
@@ -150,6 +159,7 @@ def parse_reach_list_for_output(reach_list:list, sword_version:int):
             }
         )
     return reach_dict_list
+
 def combine_continents(continents, data_dir, sword_version,expanded, logger):
     """Combine continent-level data in to global data.
     
@@ -170,13 +180,19 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
         Dictionary of global data lists
     """
     out_dict = {}
+    continent_json = []
     for continent in continents:
         if expanded:
-            prefix = 'expanded_reaches_of_interest'
+            all_continent_files = glob.glob(os.path.join(data_dir, f'expanded_reaches_of_interest_{continent}.json'))
         else:
-            prefix = ''
-        
-        all_continent_files = glob.glob(os.path.join(data_dir, f'{prefix}*{continent}*'))
+            all_continent_files = glob.glob(os.path.join(data_dir, f'*_{continent}.json'))
+
+        if all_continent_files and not expanded:
+            key = all_continent_files[0].split("_")[-1].split(".")[0]
+            for element in CONTINENTS:
+                for c, i in element.items():
+                    if c == key:
+                        continent_json.append({key: i})
         
         if not expanded:
             all_continent_files = [i for i in all_continent_files if not os.path.basename(i).startswith('expanded') ]
@@ -211,6 +227,13 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
         with open(outpath, 'w') as jf:
             json.dump(out_dict[a_key], jf, indent=2)
             logger.info(f"Written: {outpath}.")
+    
+    if not expanded:
+        c_file = os.path.join(data_dir, 'continent.json')
+        reaches_json_list.append(c_file)
+        with open(c_file, 'w') as jf:
+            json.dump(continent_json, jf, indent=2)
+            logger.info(f"Written: {c_file}")
 
     return reaches_json_list
 
@@ -220,42 +243,65 @@ def create_basin_data(basin_id, base_reaches, sword_version):
     return {
         "basin_id": basin_id, 
         "reach_id": [reach_id for reach_id in base_reaches if str(reach_id).startswith(str(basin_id))],
-        "sword": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}.nc",
+        "sword": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_patch.nc",
         "sos": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_SOS_priors.nc"
     }
 
-def upload(json_file_list, upload_bucket, logger):
+def upload(json_file_list, upload_bucket, input_dir, expanded, logger):
     """Upload JSON files to S3 bucket."""
     
     s3 = boto3.client("s3")
     date_prefix = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
-    for json_file in json_file_list:
-        try:
+    try:
+        for json_file in json_file_list:
+            json_file = pathlib.Path(json_file)
+            if json_file.name == "expanded_reaches_of_interest.json": continue
+            
             # Upload under date prefix
             s3.upload_file(str(json_file),
-                           upload_bucket,
-                           f"{date_prefix}/{json_file.name}",
-                           ExtraArgs={"ServerSideEncryption": "aws:kms"})
+                        upload_bucket,
+                        f"{date_prefix}/{json_file.name}",
+                        ExtraArgs={"ServerSideEncryption": "aws:kms"})
+            logger.info(f"Uploaded {json_file} to {upload_bucket}.")
             # Upload to root of bucket
             s3.upload_file(str(json_file),
-                           upload_bucket,
-                           json_file.name,
-                           ExtraArgs={"ServerSideEncryption": "aws:kms"})
-            logger.info(f"Uploaded {json_file} to {upload_bucket}.")    
-        except botocore.exceptions.ClientError as e:
-            raise e
+                        upload_bucket,
+                        json_file.name,
+                        ExtraArgs={"ServerSideEncryption": "aws:kms"})
+            logger.info(f"Uploaded {json_file} to {upload_bucket}/{date_prefix}.")
+        
+        # Upload expanded reaches of interest
+        expanded_roi = pathlib.Path(input_dir).joinpath("expanded_reaches_of_interest.json")
+        if expanded_roi.exists():
+            s3.upload_file(str(expanded_roi),
+                                upload_bucket,
+                                expanded_roi.name,
+                                ExtraArgs={"ServerSideEncryption": "aws:kms"})
+        logger.info(f"Uploaded {expanded_roi} to {upload_bucket}.")
+        if not expanded and expanded_roi.exists():
+            s3.upload_file(str(expanded_roi),
+                                upload_bucket,
+                                f"{date_prefix}/{expanded_roi.name}",
+                                ExtraArgs={"ServerSideEncryption": "aws:kms"})
+            logger.info(f"Uploaded {expanded_roi} to {upload_bucket}/{date_prefix}.")
+        
+    except botocore.exceptions.ClientError as e:
+        raise e
 
 def combine_data():
     """Combine continent-level JSON files into global files."""
     
     start = datetime.datetime.now()
     
+    # Get logger
+    logger = get_logger()
+    
     # Command line arguments
     arg_parser = create_args()
     args = arg_parser.parse_args()
     
-    # Get logger
-    logger = get_logger()
+    for arg in vars(args):
+        logger.info("%s: %s", arg, getattr(args, arg))
     
     # Load continents
     # continents = load_continents(data_dir = args.datadir, cont_file = args.contfile, expanded = args.expanded)
@@ -270,13 +316,13 @@ def combine_data():
     ]
 
     # Combine continent-level data
-    json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded,logger)
+    json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded, logger)
     
     # Upload JSON files to S3
     if args.uploadbucket:
 
         try:
-            upload(json_file_list, args.uploadbucket, logger)
+            upload(json_file_list, args.uploadbucket, args.datadir, args.expanded, logger)
         except botocore.exceptions.ClientError as e:
             logger.error(e)
             logger.info("System exiting.")
