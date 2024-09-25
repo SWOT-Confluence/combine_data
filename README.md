@@ -1,6 +1,6 @@
-# datagen
+# combine data
 
-This script combines the continent-level data files produced by datagen into single, global-level files.
+This script combines the continent-level data files produced by setfinder into single, global-level files.
 
 The following files are combined and created:
 - basin.json
