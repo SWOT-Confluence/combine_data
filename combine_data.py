@@ -154,7 +154,7 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
                 logger.info('making basin from %s', continent_file)
                 base_reaches = [reach_data["reach_id"] for reach_data in data]
                 basin_ids = list(set([str(reach)[:4] for reach in base_reaches]))
-                basin_data = [create_basin_data(basin_id, base_reaches, sword_version) for basin_id in basin_ids]
+                basin_data = [create_basin_data(data_dir, basin_id, base_reaches, sword_version) for basin_id in basin_ids]
                 out_dict['basin'].extend(basin_data)
 
     reaches_json_list = []
@@ -174,13 +174,19 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
 
     return reaches_json_list
 
-def create_basin_data(basin_id, base_reaches, sword_version):
+def create_basin_data(data_dir, basin_id, base_reaches, sword_version):
     continent_codes = { '1': "af", '2': "eu", '3': "as", '4': "as", '5': "oc", '6': "sa", '7': "na", '8': "na", '9':"na" }
+
+    sword_filepath = os.path.join(data_dir, "sword", f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_patch.nc")
+    if os.path.exists(sword_filepath):
+        sword_file = os.path.basename(sword_filepath)
+    else:
+        sword_file = f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}.nc"
 
     return {
         "basin_id": basin_id, 
         "reach_id": [reach_id for reach_id in base_reaches if str(reach_id).startswith(str(basin_id))],
-        "sword": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_patch.nc",
+        "sword": sword_file,
         "sos": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_SOS_priors.nc"
     }
 
@@ -255,7 +261,6 @@ def combine_data():
     
     # Upload JSON files to S3
     if args.uploadbucket:
-
         try:
             upload(json_file_list, args.uploadbucket, args.datadir, args.expanded, logger)
         except botocore.exceptions.ClientError as e:
