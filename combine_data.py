@@ -80,44 +80,6 @@ def create_args():
                             action="store_true")
     return arg_parser
 
-def load_continents(data_dir:str , cont_file:str, expanded):
-    """Load continents from JSON file.
-    
-    Parameters
-    ----------
-    cont_json : pathlib.Path
-        Path to continent.json file.
-    """
-
-    if expanded:
-        cont_file = 'expanded_' + cont_file
-
-
-    if len(glob.glob(os.path.join(data_dir, '*'))) == 0:
-        raise ValueError('no files found at ', glob.glob(os.path.join(data_dir, '*')))
-
-    continent_dict = {
-        "af": {"af" : [1]},
-        "as": {"as" : [4, 3]},
-        "eu": {"eu" : [2]},
-        "na": {"na" : [7, 8, 9]},
-        "oc": {"oc" : [5]},
-        "sa": {"sa" : [6]}
-    }
-
-    # Parses reach jsons to find what continents have data
-
-    # all_conts = [ continent_dict[os.path.basename(i).split('_')[-1].replace('.json', '')] for i in glob.glob(os.path.join(data_dir, '*reaches*.json')) if os.path.basename(i).split('_')[-1].replace('.json', '') not in ['interest', 'reaches']]
-
-
-
-
-    # Create new continent file
-    with open(os.path.join(data_dir, cont_file), 'w') as jf:
-        json.dump(all_conts, jf, indent=2)
-    
-    return [list(i.keys())[0] for i in all_conts]
-
 def get_logger():
     """Return a formatted logger object."""
     
@@ -139,26 +101,6 @@ def get_logger():
 
     # Return logger
     return logger
-def parse_reach_list_for_output(reach_list:list, sword_version:int):
-
-#   {
-#     "reach_id": 12798000121,
-#     "sword": "af_sword_v16_patch.nc",
-#     "swot": "12798000121_SWOT.nc",
-#     "sos": "af_sword_v16_SOS_priors.nc"
-#   }
-    continent_codes = { '1': "af", '2': "eu", '3': "as", '4': "as", '5': "oc", '6': "sa", '7': "na", '8': "na", '9':"na" }
-    reach_dict_list = []
-    for i in reach_list:
-        reach_dict_list.append(
-            {
-            "reach_id": int(i),
-            "sword": f"{continent_codes[str(i)[0]]}_sword_v{sword_version}.nc",
-            "swot": f"{i}_SWOT.nc",
-            "sos": f"{continent_codes[str(i)[0]]}_sword_v{sword_version}_SOS_priors.nc"
-            }
-        )
-    return reach_dict_list
 
 def combine_continents(continents, data_dir, sword_version,expanded, logger):
     """Combine continent-level data in to global data.
@@ -196,29 +138,24 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
         
         if not expanded:
             all_continent_files = [i for i in all_continent_files if not os.path.basename(i).startswith('expanded') ]
+
         for continent_file in all_continent_files:
             with open(continent_file) as jf:
                 data = json.load(jf)
-            
-            global_file_basename = os.path.basename(continent_file).replace(f'_{continent}.json', '')
 
+            global_file_basename = os.path.basename(continent_file).replace(f'_{continent}.json', '')
             if global_file_basename not in list(out_dict.keys()):
                 out_dict[global_file_basename] = []
-
             out_dict[global_file_basename].extend(data)
 
-            
             if not expanded and os.path.basename(continent_file).startswith('reaches'):
                 if 'basin' not in list(out_dict.keys()):
                     out_dict['basin'] = []
-                print('making basin from ', continent_file)
+                logger.info('making basin from %s', continent_file)
                 base_reaches = [reach_data["reach_id"] for reach_data in data]
                 basin_ids = list(set([str(reach)[:4] for reach in base_reaches]))
-                
                 basin_data = [create_basin_data(basin_id, base_reaches, sword_version) for basin_id in basin_ids]
-
                 out_dict['basin'].extend(basin_data)
-
 
     reaches_json_list = []
     for a_key in list(out_dict.keys()):
@@ -304,8 +241,6 @@ def combine_data():
         logger.info("%s: %s", arg, getattr(args, arg))
     
     # Load continents
-    # continents = load_continents(data_dir = args.datadir, cont_file = args.contfile, expanded = args.expanded)
-    # logger.info(f"Written: {args.contfile}")
     continents = [
         "af",
         "as",
@@ -329,7 +264,7 @@ def combine_data():
             sys.exit(1)
         
     end = datetime.datetime.now()
-    print(f"Execution time: {end - start}")
+    logger.info(f"Execution time: {end - start}")
  
     
 if __name__ == "__main__":
