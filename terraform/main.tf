@@ -16,7 +16,6 @@ provider "aws" {
     tags = local.default_tags
   }
   region  = var.aws_region
-  profile = var.profile
 }
 
 # Data sources
