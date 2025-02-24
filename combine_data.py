@@ -48,7 +48,7 @@ CONTINENTS = [
     { "oc" : [5] },
     { "sa" : [6] }
 ]
-   
+
 def create_args():
     """Create and return argparser with arguments."""
 
@@ -66,6 +66,10 @@ def create_args():
                             "--uploadbucket",
                             type=str,
                             help="Name of S3 bucket to upload JSON files to.")
+    arg_parser.add_argument("-k",
+                            "--bucketkey",
+                            type=str,
+                            help="Name of prefix to upload JSON files to.")
     arg_parser.add_argument("-s",
                             "--sword_version",
                             type=str,
@@ -104,7 +108,7 @@ def get_logger():
 
 def combine_continents(continents, data_dir, sword_version,expanded, logger):
     """Combine continent-level data in to global data.
-    
+
     Parameters
     ----------
     continents: list
@@ -115,7 +119,7 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
         Dictionary of global data lists
     logger: logger
         Logger instance to use for logging statements
-        
+
     Returns
     -------
     dict
@@ -190,29 +194,28 @@ def create_basin_data(data_dir, basin_id, base_reaches, sword_version):
         "sos": f"{continent_codes[str(basin_id)[0]]}_sword_v{sword_version}_SOS_priors.nc"
     }
 
-def upload(json_file_list, upload_bucket, input_dir, expanded, logger):
+def upload(json_file_list, upload_bucket, bucket_key, input_dir, expanded, logger):
     """Upload JSON files to S3 bucket."""
-    
+
     s3 = boto3.client("s3")
-    date_prefix = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
     try:
         for json_file in json_file_list:
             json_file = pathlib.Path(json_file)
             if json_file.name == "expanded_reaches_of_interest.json": continue
-            
-            # Upload under date prefix
+
+            # Upload under bucket key
             s3.upload_file(str(json_file),
                         upload_bucket,
-                        f"{date_prefix}/{json_file.name}",
+                        f"{bucket_key}/{json_file.name}",
                         ExtraArgs={"ServerSideEncryption": "aws:kms"})
-            logger.info(f"Uploaded {json_file} to {upload_bucket}.")
+            logger.info(f"Uploaded {json_file} to {upload_bucket}/{bucket_key}.")
             # Upload to root of bucket
             s3.upload_file(str(json_file),
                         upload_bucket,
                         json_file.name,
                         ExtraArgs={"ServerSideEncryption": "aws:kms"})
-            logger.info(f"Uploaded {json_file} to {upload_bucket}/{date_prefix}.")
-        
+            logger.info(f"Uploaded {json_file} to {upload_bucket}.")
+
         # Upload expanded reaches of interest
         expanded_roi = pathlib.Path(input_dir).joinpath("expanded_reaches_of_interest.json")
         if expanded_roi.exists():
@@ -224,28 +227,28 @@ def upload(json_file_list, upload_bucket, input_dir, expanded, logger):
         if not expanded and expanded_roi.exists():
             s3.upload_file(str(expanded_roi),
                                 upload_bucket,
-                                f"{date_prefix}/{expanded_roi.name}",
+                                f"{bucket_key}/{expanded_roi.name}",
                                 ExtraArgs={"ServerSideEncryption": "aws:kms"})
-            logger.info(f"Uploaded {expanded_roi} to {upload_bucket}/{date_prefix}.")
-        
+            logger.info(f"Uploaded {expanded_roi} to {upload_bucket}/{bucket_key}.")
+
     except botocore.exceptions.ClientError as e:
         raise e
 
 def combine_data():
     """Combine continent-level JSON files into global files."""
-    
+
     start = datetime.datetime.now()
-    
+
     # Get logger
     logger = get_logger()
-    
+
     # Command line arguments
     arg_parser = create_args()
     args = arg_parser.parse_args()
-    
+
     for arg in vars(args):
         logger.info("%s: %s", arg, getattr(args, arg))
-    
+
     # Load continents
     continents = [
         "af",
@@ -258,19 +261,19 @@ def combine_data():
 
     # Combine continent-level data
     json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded, logger)
-    
+
     # Upload JSON files to S3
     if args.uploadbucket:
         try:
-            upload(json_file_list, args.uploadbucket, args.datadir, args.expanded, logger)
+            upload(json_file_list, args.uploadbucket, args.bucketkey, args.datadir, args.expanded, logger)
         except botocore.exceptions.ClientError as e:
             logger.error(e)
             logger.info("System exiting.")
             sys.exit(1)
-        
+
     end = datetime.datetime.now()
     logger.info(f"Execution time: {end - start}")
- 
-    
+
+
 if __name__ == "__main__":
     combine_data()
