@@ -19,6 +19,18 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
+data "aws_efs_file_system" "input" {
+  creation_token = "${var.prefix}-input"
+}
+
+data "aws_iam_role" "job" {
+  name = "${var.prefix}-batch-job-role"
+}
+
+data "aws_iam_role" "exec" {
+  name = "${var.prefix}-ecs-exe-task-role"
+}
+
 locals {
   account_id = sensitive(data.aws_caller_identity.current.account_id)
   default_tags = length(var.default_tags) == 0 ? {
@@ -35,4 +47,9 @@ module "confluence-combine-data" {
   aws_region        = var.aws_region
   environment       = var.environment
   prefix            = var.prefix
+  iam_execution_role_arn = data.aws_iam_role.exec.arn
+  iam_job_role_arn = data.aws_iam_role.job.arn
+  efs_file_system_ids = {
+    input = data.aws_efs_file_system.input.file_system_id
+  }
 }
