@@ -29,13 +29,3 @@ variable "prefix" {
   type        = string
   description = "Prefix to add to all AWS resources as a unique identifier"
 }
-
-variable "iam_job_role_arn" {
-  type        = string
-  description = "The IAM ARN of the job role"
-}
-
-variable "iam_execution_role_arn" {
-  type        = string
-  description = "The IAM ARN of the execution role"
-}
