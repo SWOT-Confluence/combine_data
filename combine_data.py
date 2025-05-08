@@ -189,16 +189,13 @@ def combine_continents(continents, data_dir, sword_version,expanded,ssc, logger)
 def combine_ssc(data_dir:str, logger):
         """Combine SSC input data into a single file."""
         ssc_input_data = glob.glob(os.path.join(data_dir, "ssc", "*.json"))
-        logger.info('found', len(ssc_input_data), 'ssc files...')
 
 
         ssc_json_data = {}
         count = 0
         for ssc_input in ssc_input_data:
-            logger.info('processing ssc')
             with open(ssc_input) as jf:
                 data = json.load(jf)
-                logger.info(f'{ssc_input}')
                 for key in list(data.keys()):
                     short_key = key[:-10]
                     if short_key in list(ssc_json_data.keys()):
@@ -206,8 +203,6 @@ def combine_ssc(data_dir:str, logger):
                         ssc_json_data[short_key].extend(data[key])
                         ssc_json_data[short_key] = list(set(ssc_json_data[short_key]))
                         after_len = len(ssc_json_data[short_key])
-                        if prev_len != after_len:
-                            logger.info(f'{ssc_input} difference {short_key}')
 
                     else:
                         ssc_json_data[short_key] = data[key]
