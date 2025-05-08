@@ -177,8 +177,7 @@ def combine_continents(continents, data_dir, sword_version,expanded,ssc, logger)
         reaches_json_list.append(c_file)
         with open(c_file, 'w') as jf:
             json.dump(continent_json, jf, indent=2)
-            logger.info(f"Written: {c_file}")
-
+            logger.info(f"Written: {c_file}")         
     if ssc:
         ssc_json_data = combine_ssc(data_dir=data_dir, logger = logger)
 
@@ -215,7 +214,9 @@ def combine_ssc(data_dir:str, logger):
 
 
                 # ssc_json_data.extend(data)
-        return ssc_json_data
+        single_entry_list = [{k: v} for k, v in ssc_json_data.items()]
+
+        return single_entry_list
 
 def create_basin_data(data_dir, basin_id, base_reaches, sword_version):
     continent_codes = { '1': "af", '2': "eu", '3': "as", '4': "as", '5': "oc", '6': "sa", '7': "na", '8': "na", '9':"na" }
