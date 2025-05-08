@@ -82,6 +82,9 @@ def create_args():
                             "--expanded",
                             help="Indicate we are looking for expanded set files.",
                             action="store_true")
+    arg_parser.add_argument("--ssc",
+                            help="Indicate we are looking for expanded set files.",
+                            action="store_true")
     return arg_parser
 
 def get_logger():
@@ -106,7 +109,7 @@ def get_logger():
     # Return logger
     return logger
 
-def combine_continents(continents, data_dir, sword_version,expanded, logger):
+def combine_continents(continents, data_dir, sword_version,expanded,ssc, logger):
     """Combine continent-level data in to global data.
 
     Parameters
@@ -176,7 +179,43 @@ def combine_continents(continents, data_dir, sword_version,expanded, logger):
             json.dump(continent_json, jf, indent=2)
             logger.info(f"Written: {c_file}")
 
+    if ssc:
+        ssc_json_data = combine_ssc(data_dir=data_dir, logger = logger)
+
+        with open(os.path.join(data_dir,"ssc_hls_list.json"), "w") as jf:
+            json.dump(ssc_json_data, jf, indent=2)
+
     return reaches_json_list
+
+def combine_ssc(data_dir:str, logger):
+        """Combine SSC input data into a single file."""
+        ssc_input_data = glob.glob(os.path.join(data_dir, "ssc", "*.json"))
+        logger.info('found', len(ssc_input_data), 'ssc files...')
+
+
+        ssc_json_data = {}
+        count = 0
+        for ssc_input in ssc_input_data:
+            logger.info('processing ssc')
+            with open(ssc_input) as jf:
+                data = json.load(jf)
+                logger.info(f'{ssc_input}')
+                for key in list(data.keys()):
+                    short_key = key[:-10]
+                    if short_key in list(ssc_json_data.keys()):
+                        prev_len = len(ssc_json_data[short_key])
+                        ssc_json_data[short_key].extend(data[key])
+                        ssc_json_data[short_key] = list(set(ssc_json_data[short_key]))
+                        after_len = len(ssc_json_data[short_key])
+                        if prev_len != after_len:
+                            logger.info(f'{ssc_input} difference {short_key}')
+
+                    else:
+                        ssc_json_data[short_key] = data[key]
+
+
+                # ssc_json_data.extend(data)
+        return ssc_json_data
 
 def create_basin_data(data_dir, basin_id, base_reaches, sword_version):
     continent_codes = { '1': "af", '2': "eu", '3': "as", '4': "as", '5': "oc", '6': "sa", '7': "na", '8': "na", '9':"na" }
@@ -260,7 +299,7 @@ def combine_data():
     ]
 
     # Combine continent-level data
-    json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded, logger)
+    json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded, args.ssc, logger)
 
     # Upload JSON files to S3
     if args.uploadbucket:
