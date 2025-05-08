@@ -181,8 +181,11 @@ def combine_continents(continents, data_dir, sword_version,expanded,ssc, logger)
     if ssc:
         ssc_json_data = combine_ssc(data_dir=data_dir, logger = logger)
 
-        with open(os.path.join(data_dir,"ssc_hls_list.json"), "w") as jf:
+        ssc_json = os.path.join(data_dir,"ssc_hls_list.json")
+        with open(ssc_json, "w") as jf:
             json.dump(ssc_json_data, jf, indent=2)
+        reaches_json_list.append(ssc_json)
+        logger.info(f"Written: %s", ssc_json)
 
     return reaches_json_list
 
