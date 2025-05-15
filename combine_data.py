@@ -82,9 +82,6 @@ def create_args():
                             "--expanded",
                             help="Indicate we are looking for expanded set files.",
                             action="store_true")
-    arg_parser.add_argument("--ssc",
-                            help="Indicate we are looking for expanded set files.",
-                            action="store_true")
     return arg_parser
 
 def get_logger():
@@ -109,7 +106,7 @@ def get_logger():
     # Return logger
     return logger
 
-def combine_continents(continents, data_dir, sword_version,expanded,ssc, logger):
+def combine_continents(continents, data_dir, sword_version, expanded, logger):
     """Combine continent-level data in to global data.
 
     Parameters
@@ -171,28 +168,29 @@ def combine_continents(continents, data_dir, sword_version,expanded,ssc, logger)
         with open(outpath, 'w') as jf:
             json.dump(out_dict[a_key], jf, indent=2)
             logger.info(f"Written: {outpath}.")
-    
+
     if not expanded:
         c_file = os.path.join(data_dir, 'continent.json')
         reaches_json_list.append(c_file)
         with open(c_file, 'w') as jf:
             json.dump(continent_json, jf, indent=2)
             logger.info(f"Written: {c_file}")         
-    if ssc:
-        ssc_json_data = combine_ssc(data_dir=data_dir, logger = logger)
 
+    ssc_json_data = combine_ssc(data_dir=data_dir, logger = logger)
+    if len(ssc_json_data) > 0:
         ssc_json = os.path.join(data_dir,"ssc_hls_list.json")
         with open(ssc_json, "w") as jf:
             json.dump(ssc_json_data, jf, indent=2)
         reaches_json_list.append(ssc_json)
         logger.info(f"Written: %s", ssc_json)
+    else:
+        logger.info("No SSC JSON written.")
 
     return reaches_json_list
 
 def combine_ssc(data_dir:str, logger):
         """Combine SSC input data into a single file."""
         ssc_input_data = glob.glob(os.path.join(data_dir, "ssc", "*.json"))
-
 
         ssc_json_data = {}
         count = 0
@@ -209,7 +207,6 @@ def combine_ssc(data_dir:str, logger):
 
                     else:
                         ssc_json_data[short_key] = data[key]
-
 
                 # ssc_json_data.extend(data)
         single_entry_list = [{k: v} for k, v in ssc_json_data.items()]
@@ -298,7 +295,11 @@ def combine_data():
     ]
 
     # Combine continent-level data
-    json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded, args.ssc, logger)
+    json_file_list = combine_continents(continents, args.datadir, args.sword_version, args.expanded, logger)
+
+    # Check for lakeflow data
+    viable_lakes = pathlib.Path(args.datadir).joinpath("lakeflow", "viable", "viable_locations.csv")
+    if viable_lakes.exists(): json_file_list.append(str(viable_lakes))
 
     # Upload JSON files to S3
     if args.uploadbucket:
