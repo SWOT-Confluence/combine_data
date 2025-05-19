@@ -1,10 +1,10 @@
 # Job Definition
 resource "aws_batch_job_definition" "generate_batch_jd_combine_data" {
-  name                  = "${var.prefix}-combine-data"
-  type                  = "container"
+  name = "${var.prefix}-combine-data"
+  type = "container"
   platform_capabilities = ["FARGATE"]
-  propagate_tags        = true
-  tags                  = { "job_definition": "${var.prefix}-combine-data" }
+  propagate_tags = true
+  tags = { "job_definition": "${var.prefix}-combine-data" }
 
   container_properties  = jsonencode({
     image = "${local.account_id}.dkr.ecr.us-west-2.amazonaws.com/${var.prefix}-combine-data:${var.image_tag}"
