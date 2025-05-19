@@ -8,7 +8,6 @@ variable "app_version" {
   type        = string
   description = "The application version number"
 }
-
 variable "aws_region" {
   type        = string
   description = "AWS region to deploy to"
@@ -16,18 +15,8 @@ variable "aws_region" {
 }
 
 variable "default_tags" {
-  type    = map(string)
-  default = {}
-}
-
-variable "environment" {
-  type        = string
-  description = "The environment in which to deploy to"
-}
-
-variable "prefix" {
-  type        = string
-  description = "Prefix to add to all AWS resources as a unique identifier"
+  type        = map(string)
+  default     = {}
 }
 
 variable "efs_file_system_ids" {
@@ -35,12 +24,28 @@ variable "efs_file_system_ids" {
   description = "Map of EFS file system ids to pass to the container definition"
 }
 
-variable "iam_job_role_arn" {
+variable "environment" {
   type        = string
-  description = "The IAM ARN of the job role"
+  description = "The environment in which to deploy to"
 }
 
 variable "iam_execution_role_arn" {
   type        = string
   description = "The IAM ARN of the execution role"
+}
+
+variable "iam_job_role_arn" {
+  type        = string
+  description = "The IAM ARN of the job role"
+}
+
+variable "image_tag" {
+  type        = string
+  description = "The container image tag to utilize"
+  default     = "latest"
+}
+
+variable "prefix" {
+  type        = string
+  description = "Prefix to add to all AWS resources as a unique identifier"
 }

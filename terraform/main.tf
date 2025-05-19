@@ -14,7 +14,7 @@ provider "aws" {
   default_tags {
     tags = local.default_tags
   }
-  region  = var.aws_region
+  region = var.aws_region
 }
 
 data "aws_caller_identity" "current" {}
@@ -41,15 +41,15 @@ locals {
 }
 
 module "confluence-combine-data" {
-  source            = "./modules/combine"
-  app_name          = var.app_name
-  app_version       = var.app_version
-  aws_region        = var.aws_region
-  environment       = var.environment
-  prefix            = var.prefix
-  iam_execution_role_arn = data.aws_iam_role.exec.arn
-  iam_job_role_arn = data.aws_iam_role.job.arn
+  source = "./modules/combine"
+  app_name = var.app_name
+  app_version = var.app_version
+  aws_region = var.aws_region
   efs_file_system_ids = {
     input = data.aws_efs_file_system.input.file_system_id
   }
+  environment = var.environment
+  iam_execution_role_arn = data.aws_iam_role.exec.arn
+  iam_job_role_arn = data.aws_iam_role.job.arn
+  prefix = var.prefix
 }
