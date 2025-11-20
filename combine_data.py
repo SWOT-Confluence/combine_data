@@ -188,30 +188,26 @@ def combine_continents(continents, data_dir, sword_version, expanded, logger):
 
     return reaches_json_list
 
-def combine_ssc(data_dir:str, logger):
-        """Combine SSC input data into a single file."""
-        ssc_input_data = glob.glob(os.path.join(data_dir, "ssc", "*.json"))
+def combine_ssc(data_dir: str, logger):
+    """Combine SSC input data into a single file."""
+    ssc_input_data = glob.glob(os.path.join(data_dir, "ssc", "*.json"))
+    ssc_json_data = {}
 
-        ssc_json_data = {}
-        count = 0
-        for ssc_input in ssc_input_data:
-            with open(ssc_input) as jf:
-                data = json.load(jf)
-                for key in list(data.keys()):
-                    short_key = key[:-10]
-                    if short_key in list(ssc_json_data.keys()):
-                        prev_len = len(ssc_json_data[short_key])
-                        ssc_json_data[short_key].extend(data[key])
-                        ssc_json_data[short_key] = list(set(ssc_json_data[short_key]))
-                        after_len = len(ssc_json_data[short_key])
+    for ssc_input in ssc_input_data:
+        with open(ssc_input) as jf:
+            data = json.load(jf)
+            for key, value in data.items():
+                short_key = key[:-10]
+                if short_key in ssc_json_data:
+                    # Use set for deduplication during merge
+                    ssc_json_data[short_key].update(value)
+                else:
+                    # Store as set for efficient deduplication
+                    ssc_json_data[short_key] = set(value)
 
-                    else:
-                        ssc_json_data[short_key] = data[key]
-
-                # ssc_json_data.extend(data)
-        single_entry_list = [{k: v} for k, v in ssc_json_data.items()]
-
-        return single_entry_list
+    # Convert sets back to lists only at the end
+    single_entry_list = [{k: list(v)} for k, v in ssc_json_data.items()]
+    return single_entry_list
 
 def create_basin_data(data_dir, basin_id, base_reaches, sword_version):
     continent_codes = { '1': "af", '2': "eu", '3': "as", '4': "as", '5': "oc", '6': "sa", '7': "na", '8': "na", '9':"na" }
