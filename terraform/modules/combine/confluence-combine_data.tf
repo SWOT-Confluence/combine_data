@@ -21,10 +21,10 @@ resource "aws_batch_job_definition" "generate_batch_jd_combine_data" {
     }
     resourceRequirements = [{
       type = "MEMORY"
-      value = "2048"
+      value = "61440"
     }, {
       type = "VCPU",
-      value = "1"
+      value = "8"
     }]
     mountPoints = [{
       sourceVolume = "input",
